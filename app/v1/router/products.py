@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Path, status, Depends, UploadFile
 
 from ..controller.ProductController import ProductController as PC
-from ..schema.product import ProductCreate, ProductResponse, ProductUpdate
+from ..schema.product import ProductCreate, ProductResponse, ProductUpdate, ProductFullResponse
 from ..security.authorization import JWTAuthorization, oauth2_scheme
 
 
@@ -28,7 +28,7 @@ def searchProduct(
 	return ProductController.search(word, page, qt)
 
 
-@router.get('/{product_id}', status_code=status.HTTP_200_OK)
+@router.get('/{product_id}', status_code=status.HTTP_200_OK, response_model=ProductFullResponse)
 def getProduct(product_id: int = Path(title='ID of product')):
 	"""Get a unique product by ID"""
 	return ProductController.index(product_id)

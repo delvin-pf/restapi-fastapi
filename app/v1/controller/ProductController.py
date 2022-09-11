@@ -4,15 +4,15 @@ from os import remove
 
 from playhouse.shortcuts import model_to_dict
 from peewee import prefetch
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response, FileResponse
 from fastapi import HTTPException, status, UploadFile
 
 from app.v1.model.index import Category, CategoryProduct, Product, User
-from ..schema.product import ProductResponse, ProductFullResponse
+from ..schema.product import ProductResponse
 
 
 class ProductController:
+	"""Controller to products endpoints"""
 	
 	def __init__(self):
 		self.images_path = 'app/v1/static/images/'
@@ -40,15 +40,19 @@ class ProductController:
 			detail='can´t modify this product'
 		)
 	
-	def store(self, page, qt):
+	def store(self, page: int, qt: int = 10):
+		"""Return a products list \n
+		:param int page: page
+		:param int qt: quantity of product to return"""
 		products = Product.select(*self.min_product_selector).where(Product.isAvaliable == bool(True)) \
 			.paginate(page, qt).order_by(Product.id)
-		
 		products_list = self.__organize_products([product for product in products])
 		
-		return JSONResponse(status_code=200, content=jsonable_encoder(products_list))
-	
-	def index(self, p_id):
+		return products_list
+		
+	def index(self, p_id: int):
+		"""Return a specific product \n
+		:param int p_id: ID of product"""
 		query = prefetch(
 			Product.select(*self.complete_product_selector, *self.vendor_selector).join(User).where(Product.id == p_id),
 			CategoryProduct.select(CategoryProduct.productId, *self.category_selector).join(Category)
@@ -60,21 +64,25 @@ class ProductController:
 		categories = [p.categoryId for p in product.categories]
 		product.categories = categories
 		
-		response = ProductFullResponse.parse_obj(model_to_dict(product, backrefs=True))
-		
-		return JSONResponse(status_code=200, content=jsonable_encoder(response, exclude_none=True))
+		return model_to_dict(product, backrefs=True)
 	
 	def search(self, word: str, page: int, qt: int):
+		"""Return a list of products, filtered by keyword \n
+		:param str word: keyword to search in product
+		:param int page: page
+		:param int qt: quantity of product to return"""
 		filter_by_words = (Product.name.contains(word)) | (Product.description.contains(word))
 		
 		query = Product.select(*self.min_product_selector).where(filter_by_words & Product.isAvaliable == bool(True)) \
 			.paginate(page, qt)
 		
 		products_dict = self.__organize_products([product for product in query])
-		
-		return JSONResponse(status_code=200, content=jsonable_encoder(products_dict))
+		return products_dict
 	
 	def create(self, body, user):
+		"""Create a new product \n
+		:param body: product info (pydantic model)
+		:param dict user: user data (by JWT)"""
 		if not user['isVendor']:
 			raise HTTPException(
 				status_code=status.HTTP_401_UNAUTHORIZED,
@@ -96,12 +104,13 @@ class ProductController:
 		)
 		self.__set_categories(product, body.categories)
 		
-		#### REvisar
-		product = ProductResponse.parse_obj(model_to_dict(product, backrefs=True))
-		
-		return JSONResponse(status_code=201, content=jsonable_encoder(product))
+		return model_to_dict(product)
 	
 	def update(self, p_id, body, user):
+		"""Update a product	\n
+		@param int p_id: ID of product to update
+		@param body: product data
+		@param dict user: user data (by JWT)"""
 		product = Product.get_or_none(Product.id == p_id)
 		
 		if not product:
@@ -130,19 +139,20 @@ class ProductController:
 		return Response(status_code=204)
 	
 	def delete(self, p_id, user):
+		"""Delete a product \n
+		@param p_id:
+		@param dict user: user data (by JWT)"""
 		product = Product.get_or_none(Product.id == p_id)
 		
 		if not product:
 			raise self.PRODUCT_NOT_FOUND
-		
 		if user['id'] is not product.vendor.id:
 			raise self.NO_OWNED_PRODUCT
-		
 		if product.image:
 			image_path = self.images_path + product.image
 			try:
 				remove(image_path)
-			except BaseException:
+			except BaseException as e:
 				pass
 		
 		product.delete_instance()
@@ -150,13 +160,15 @@ class ProductController:
 		return Response(status_code=204)
 	
 	def add_image(self, user: dict, p_id: int, file: UploadFile):
+		"""Add image product
+		@param user: user data
+		@param p_id: ID of product
+		@param file: file"""
 		product = Product.get_or_none(Product.id == p_id)
 		if not product:
 			raise self.PRODUCT_NOT_FOUND
-		
 		if product.vendor.id is not user['id']:
 			raise self.NO_OWNED_PRODUCT
-		
 		file_extension = file.filename.split('.')[-1]
 		file_name = f'{str(uuid4().hex)}-{datetime.now().strftime("%d%m%Y%H%M%S")}.{file_extension}'
 		
@@ -169,6 +181,9 @@ class ProductController:
 		return Response(status_code=204)
 	
 	def get_image(self, p_id):
+		"""Return image of product
+		@param p_id: ID of product"""
+		
 		product = Product.select(Product.image).where(Product.id == p_id).get()
 		if not product:
 			raise self.PRODUCT_NOT_FOUND
@@ -178,19 +193,20 @@ class ProductController:
 		return FileResponse(fr'{self.images_path + product.image}', media_type='image/jpg')
 	
 	def avaliate(self, p_id: int, score: int):
+		"""Avaliate products
+		@param p_id: ID of product
+		@param score: calification to product"""
+		
 		product = Product.get_or_none(Product.id == p_id)
 		if not product:
 			raise self.PRODUCT_NOT_FOUND
-		
 		actual_score = product.score
 		new_score = ((actual_score * product.ratings) + score) / product.ratings + 1
 		
 		product.score = new_score
 		product.ratings += 1
 		product.save()
-		
 		return JSONResponse(status_code=200, content={'score': product.score})
-	
 	
 	def __verify_categories(self, categories: list[int]) -> None:
 		"""Verify if all categories exists in database \n

@@ -8,6 +8,7 @@ from app.v1.utils.database import dbSql
 from .router.users import router as users_router
 from .router.products import router as products_router
 from .router.categories import router as categories_router
+from .router.shoppingCart import router as cart_router
 
 
 app = FastAPI()
@@ -36,6 +37,7 @@ def shutdown():
 app.include_router(users_router)
 app.include_router(products_router)
 app.include_router(categories_router)
+app.include_router(cart_router)
 
 
 @app.get('/')
