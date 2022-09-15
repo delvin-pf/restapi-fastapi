@@ -194,14 +194,13 @@ class ProductController:
 	
 	def avaliate(self, p_id: int, score: int):
 		"""Avaliate products
-		@param p_id: ID of product
-		@param score: calification to product"""
+		:param p_id: ID of product
+		:param score: calification to product"""
 		
 		product = Product.get_or_none(Product.id == p_id)
 		if not product:
 			raise self.PRODUCT_NOT_FOUND
-		actual_score = product.score
-		new_score = ((actual_score * product.ratings) + score) / product.ratings + 1
+		new_score = ((product.score * product.ratings) + score) / (product.ratings + 1)
 		
 		product.score = new_score
 		product.ratings += 1

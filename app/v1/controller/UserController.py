@@ -82,6 +82,19 @@ class UserController:
 		return JSONResponse(status_code=status.HTTP_200_OK, content={
 			'file_name': file_name
 		})
+	
+	def avaliate(self, user: dict, u_id: int, score: int):
+		user = User.get_or_none(User.id == u_id)
+		if not user:
+			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='user not found')
+		
+		new_score = ((user.score * user.ratings) + score) / (user.ratings + 1)
+		user.score = new_score
+		user.ratings = user.ratings + 1
+		user.save()
+		
+		return JSONResponse(status_code=status.HTTP_200_OK, content={'score': new_score})
+		
 		
 	def __authenticate_user(self, username: str, password: str):
 		"""Verify if user exists and verify password\n

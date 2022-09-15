@@ -20,7 +20,7 @@ def getCart(token=Depends(oauth2_scheme)):
 	return SC.get_cart(user)
 
 
-@router.post('/')
+@router.post('')
 def addCart(token=Depends(oauth2_scheme), product_id: int =Query(title='ID of product'), quantity: int = Query(title='Quantity of products')):
 	user = JWTAuthorization.verify_token(token)
 	return SC.add_or_update_to_cart(user, product_id, quantity)

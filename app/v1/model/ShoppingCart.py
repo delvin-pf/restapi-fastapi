@@ -18,5 +18,4 @@ class ShoppingCart(Model):
 	class Meta:
 		database = dbSql
 		table_name = 'shoppingCart'
-		primary_key = False
 		

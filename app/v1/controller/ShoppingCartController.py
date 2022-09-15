@@ -1,9 +1,8 @@
 from playhouse.shortcuts import model_to_dict
-from fastapi.responses import JSONResponse, Response, FileResponse
-from fastapi import HTTPException, status, UploadFile
+from fastapi.responses import Response
+from fastapi import HTTPException, status
 
 from app.v1.model.index import Product, ShoppingCart
-from ..schema.product import ProductResponse
 
 
 class ShoppingCartController:
@@ -34,11 +33,10 @@ class ShoppingCartController:
 			ShoppingCart.create(user=user['id'], product=product, quantity=qt)
 			return Response(status_code=status.HTTP_201_CREATED)
 		
-		if item_cart and item_cart.quantity != qt:
+		if item_cart.quantity != qt:
 			item_cart.quantity = qt
 			item_cart.save()
 			return Response(status_code=status.HTTP_200_OK)
-		
 		else:
 			return Response(status_code=status.HTTP_200_OK)
 	
@@ -49,7 +47,7 @@ class ShoppingCartController:
 		if not item:
 			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Item no exists in user cart')
 		
-		ShoppingCart.delete().where((ShoppingCart.user == user['id']) & (ShoppingCart.product == p_id)).execute()
+		item.delete_instance()
 		
 		return Response(status_code=status.HTTP_204_NO_CONTENT)
 	
