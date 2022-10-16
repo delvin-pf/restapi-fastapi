@@ -95,7 +95,6 @@ class UserController:
 		
 		return JSONResponse(status_code=status.HTTP_200_OK, content={'score': new_score})
 		
-		
 	def __authenticate_user(self, username: str, password: str):
 		"""Verify if user exists and verify password\n
 		:param str username: login username

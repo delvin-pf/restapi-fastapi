@@ -9,6 +9,7 @@ class ShoppingCartController:
 	
 	def __init__(self):
 		self.min_product_selector = [Product.id, Product.name, Product.isAvaliable, Product.price, Product.image]
+		self.empty_cart = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='empty cart')
 	
 	def get_cart(self, user):
 		"""Get list of products in shopping cart"""
@@ -16,14 +17,13 @@ class ShoppingCartController:
 		query = ShoppingCart.select(*self.min_product_selector, ShoppingCart.quantity).join(Product)\
 			.where(ShoppingCart.user == user['id'])
 		
-		cart = [model_to_dict(item.product) for item in query]
+		cart = [{'quantity': item.quantity, 'product': model_to_dict(item.product)} for item in query]
 		
 		return cart
 	
 	def add_or_update_to_cart(self, user: dict, p_id: int, qt: int = 1):
 		
 		product = Product.select(Product.id).where(Product.id == p_id).get_or_none()
-		
 		if not product:
 			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='product not found')
 		
@@ -43,11 +43,23 @@ class ShoppingCartController:
 	def remove_from_cart(self, user: dict, p_id: int):
 		
 		item: ShoppingCart = ShoppingCart.get_or_none((ShoppingCart.user == user['id']) & (ShoppingCart.product == p_id))
-		
 		if not item:
 			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Item no exists in user cart')
 		
 		item.delete_instance()
+		
+		return Response(status_code=status.HTTP_204_NO_CONTENT)
+	
+	def buy_cart(self, user: dict):
+		items = self.get_cart(user)
+		if not items:
+			raise self.empty_cart
+		
+		for item in items:
+			with Product._meta.database.atomic():
+				p = Product.get_by_id(item['product']['id'])
+				p.stock = p.stock - item['quantity']
+				p.save()
 		
 		return Response(status_code=status.HTTP_204_NO_CONTENT)
 	
